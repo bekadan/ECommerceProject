@@ -1,5 +1,4 @@
-﻿using Core.Logging.Abstractions;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using Serilog;
 
 namespace Core.Logging.Middleware;

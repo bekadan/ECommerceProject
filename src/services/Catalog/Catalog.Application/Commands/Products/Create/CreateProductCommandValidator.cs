@@ -2,7 +2,7 @@
 using Shared.Core;
 using Shared.Core.Primitives;
 
-namespace Catalog.Application.Commands.Create;
+namespace Catalog.Application.Commands.Products.Create;
 
 public class CreateProductCommandValidator : IValidator<CreateProductCommand>
 {

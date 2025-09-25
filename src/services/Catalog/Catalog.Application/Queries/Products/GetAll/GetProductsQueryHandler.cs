@@ -1,14 +1,14 @@
 ﻿using Caching.Core.Abstractions;
 using Caching.Core.Options;
 using Caching.Core.Extensions;
-using Catalog.Application.DTOs;
 using Catalog.Application.Repositories;
 using Core.Logging.Abstractions;
 using Shared.Core;
 using Shared.Core.Abstractions.Messaging;
 using Shared.Core.Primitives;
+using Catalog.Application.DTOs.Products;
 
-namespace Catalog.Application.Queries.GetAll;
+namespace Catalog.Application.Queries.Products.GetAll;
 
 public class GetProductsQueryHandler
     : IQueryHandler<GetProductsQuery, Result<PaginatedList<ProductDto>>>
@@ -51,16 +51,14 @@ public class GetProductsQueryHandler
             }
 
             // 2️⃣ Map ProductAggregate → ProductDto
-            var productDtos = repoResult.Products.Select(p => new ProductDto
-            {
-                Id = p.Product.Id,
-                Name = p.Product.Name.Value,
-                Price = p.Product.Price.Amount,
-                Currency = p.Product.Price.Currency,
-                Stock = p.Product.Stock,
-                CategoryId = p.Product.CategoryId,
-                CategoryName = p.Product.Category?.Name
-            }).ToList();
+            var productDtos = repoResult.Products.Select(p => new ProductDto(
+                    p.Product.Id,
+                    p.Product.Name.Value,
+                    p.Product.Price.Amount,
+                    p.Product.Price.Currency,
+                    p.Product.Stock,
+                    p.Product.CategoryId
+                )).ToList();
 
             // 3️⃣ Wrap in PaginatedList
             var paginatedList = new PaginatedList<ProductDto>(productDtos, repoResult.TotalCount, page, size);

@@ -1,5 +1,5 @@
 ﻿using Caching.Core.Abstractions;
-using Catalog.Application.DTOs;
+using Catalog.Application.DTOs.Products;
 using Catalog.Application.Repositories;
 using Core.Exceptions.Types;
 using Core.Logging.Abstractions;
@@ -7,7 +7,7 @@ using MediatR;
 using Shared.Core;
 using Shared.Core.Primitives;
 
-namespace Catalog.Application.Queries.GetById;
+namespace Catalog.Application.Queries.Products.GetById;
 
 public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, Result<ProductDto>>
 {
@@ -49,16 +49,13 @@ public class GetProductByIdQueryHandler : IRequestHandler<GetProductByIdQuery, R
             }
 
             // 3️⃣ Map to DTO
-            var dto = new ProductDto
-            {
-                Id = aggregate.Product.Id,
-                Name = aggregate.Product.Name.Value,
-                Price = aggregate.Product.Price.Amount,
-                Currency = aggregate.Product.Price.Currency,
-                Stock = aggregate.Product.Stock,
-                CategoryId = aggregate.Product.CategoryId,
-                CategoryName = aggregate.Product.Category?.Name
-            };
+            var dto = new ProductDto(aggregate.Product.Id,
+                aggregate.Product.Name.Value,
+                aggregate.Product.Price.Amount,
+                aggregate.Product.Price.Currency,
+                aggregate.Product.Stock,
+                aggregate.Product.CategoryId
+                );
 
             // 4️⃣ Update cache
             await _cacheService.SetAsync(cacheKey, dto, TimeSpan.FromHours(1), cancellationToken);

@@ -1,7 +1,7 @@
 ﻿using Caching.Core.Abstractions;
 using Caching.Core.Extensions;
 using Caching.Core.Options;
-using Catalog.Application.DTOs;
+using Catalog.Application.DTOs.Products;
 using Catalog.Application.Repositories;
 using Catalog.Domain.Factories;
 using Core.Events.Dispatching;
@@ -13,7 +13,7 @@ using Shared.Core;
 using Shared.Core.Abstractions.Messaging;
 using Shared.Core.Primitives;
 
-namespace Catalog.Application.Commands.Create;
+namespace Catalog.Application.Commands.Products.Create;
 
 public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand, Result<ProductDto>>
 {
@@ -74,16 +74,13 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand,
             _logger.Information("Product {ProductId} created successfully", aggregate.Product.Id);
 
             // 6️⃣ Map aggregate to DTO
-            var dto = new ProductDto
-            {
-                Id = aggregate.Product.Id,
-                Name = aggregate.Product.Name.Value,
-                Price = aggregate.Product.Price.Amount,
-                Currency = aggregate.Product.Price.Currency,
-                Stock = aggregate.Product.Stock,
-                CategoryId = aggregate.Product.CategoryId,
-                CategoryName = aggregate.Product.Category?.Name
-            };
+            var dto = new ProductDto(aggregate.Product.Id,
+                aggregate.Product.Name.Value,
+                aggregate.Product.Price.Amount,
+                aggregate.Product.Price.Currency,
+                aggregate.Product.Stock,
+                aggregate.Product.CategoryId
+                );
 
             // 7️⃣ Cache individual product
             var key = _cacheService.AddPrefix(CacheKeys.Products, aggregate.Product.Id.ToString());

@@ -1,8 +1,8 @@
-﻿using Catalog.Application.DTOs;
+﻿using Catalog.Application.DTOs.Products;
 using Shared.Core;
 using Shared.Core.Abstractions.Messaging;
 
-namespace Catalog.Application.Commands.Create;
+namespace Catalog.Application.Commands.Products.Create;
 
 public record CreateProductCommand(
     string Name,

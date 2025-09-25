@@ -9,6 +9,7 @@ public class ProductAggregate : AggregateRoot
 {
     public Product Product { get; private set; }
     public Category? Category { get; private set; } // optional, can load lazily
+    
 
     private ProductAggregate() { } // For ORM or serialization
 

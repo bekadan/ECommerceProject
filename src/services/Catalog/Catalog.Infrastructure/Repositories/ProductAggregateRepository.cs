@@ -81,4 +81,26 @@ public class ProductAggregateRepository : IProductAggregateRepository
 
         return (aggregates, totalCount);
     }
+
+    /// <summary>
+    /// Returns products by a list of category IDs.
+    /// </summary>
+    public async Task<IReadOnlyList<ProductAggregate>> GetByCategoryIdsAsync(IEnumerable<Guid> categoryIds, CancellationToken cancellationToken = default)
+    {
+        if (categoryIds == null || !categoryIds.Any())
+            return new List<ProductAggregate>().AsReadOnly();
+
+        var entities = await _dbContext.Products
+            .Where(p => categoryIds.Contains(p.CategoryId))
+            .Include(p => p.Category) // optional, if you need category data
+            .ToListAsync(cancellationToken);
+
+        // Map EF entities to aggregates
+        var aggregates = entities
+            .Select(ProductAggregate.FromEntity)
+            .ToList()
+            .AsReadOnly();
+
+        return aggregates;
+    }
 }
