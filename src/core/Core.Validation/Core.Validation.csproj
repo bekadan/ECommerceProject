@@ -14,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Core.Exceptions\Core.Exceptions.csproj" />
     <ProjectReference Include="..\Core.Logging\Core.Logging.csproj" />
+    <ProjectReference Include="..\Shared.Core\Shared.Core.csproj" />
   </ItemGroup>
 
 </Project>

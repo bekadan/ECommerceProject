@@ -6,4 +6,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\core\Core.Events\Core.Events.csproj" />
+    <ProjectReference Include="..\..\..\core\Core.Exceptions\Core.Exceptions.csproj" />
+    <ProjectReference Include="..\..\..\core\Shared.Core\Shared.Core.csproj" />
+  </ItemGroup>
+
 </Project>

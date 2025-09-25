@@ -38,4 +38,9 @@ public sealed class Error : ValueObject
     /// Gets the empty error instance.
     /// </summary>
     internal static Error None => new Error(string.Empty, string.Empty);
+
+    public static Error Create(string message, string code = "ERROR")
+    {
+        return new Error(code, message);
+    }
 }
