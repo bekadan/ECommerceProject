@@ -53,4 +53,32 @@ public class ProductAggregateRepository : IProductAggregateRepository
 
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<(IReadOnlyList<ProductAggregate> Products, int TotalCount)> GetPagedAsync(
+    int pageNumber,
+    int pageSize,
+    CancellationToken cancellationToken = default)
+    {
+        if (pageNumber <= 0) pageNumber = 1;
+        if (pageSize <= 0) pageSize = 10;
+
+        // 1️⃣ Count total products for pagination
+        var totalCount = await _dbContext.Products.CountAsync(cancellationToken);
+
+        // 2️⃣ Query products
+        var entities = await _dbContext.Products
+            .Include(p => p.Category)
+            .OrderBy(p => p.Name)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        // 3️⃣ Map EF entities → aggregate roots
+        var aggregates = entities
+            .Select(ProductAggregate.FromEntity)
+            .ToList()
+            .AsReadOnly();
+
+        return (aggregates, totalCount);
+    }
 }

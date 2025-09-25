@@ -1,91 +1,84 @@
 ﻿using Caching.Core.Abstractions;
-using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace Caching.Core.Implementation;
 
 public class FallbackCacheService : ICacheService
 {
-    private readonly ICacheService _redisCache;
-    private readonly ICacheService _memoryCache;
-    private readonly ILogger<FallbackCacheService> _logger;
 
-    public FallbackCacheService(
-        RedisCacheService redisCache,
-        InMemoryCacheService memoryCache,
-        ILogger<FallbackCacheService> logger)
+    private readonly ConcurrentDictionary<string, (object Value, DateTime? Expiration)> _cache
+            = new ConcurrentDictionary<string, (object, DateTime?)>();
+
+    public FallbackCacheService()
     {
-        _redisCache = redisCache;
-        _memoryCache = memoryCache;
-        _logger = logger;
     }
 
-    public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
+    public Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
     {
-        try
+        if (_cache.TryGetValue(key, out var entry))
         {
-            return await _redisCache.GetAsync<T>(key, cancellationToken);
+            if (entry.Expiration.HasValue && entry.Expiration.Value < DateTime.UtcNow)
+            {
+                _cache.TryRemove(key, out _);
+                return Task.FromResult(default(T));
+            }
+            return Task.FromResult((T?)entry.Value);
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Redis unavailable, falling back to MemoryCache for GET {Key}", key);
-            return await _memoryCache.GetAsync<T>(key, cancellationToken);
-        }
+        return Task.FromResult(default(T));
     }
 
-    public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
+    public Task SetAsync<T>(string key, T value, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            await _redisCache.SetAsync(key, value, expiration, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Redis unavailable, falling back to MemoryCache for SET {Key}", key);
-            await _memoryCache.SetAsync(key, value, expiration, cancellationToken);
-        }
+        var expirationTime = expiration.HasValue ? DateTime.UtcNow.Add(expiration.Value) : (DateTime?)null;
+        _cache[key] = (value!, expirationTime);
+        return Task.CompletedTask;
     }
 
-    public async Task RemoveAsync(string key, CancellationToken cancellationToken = default)
+    public Task RemoveAsync(string key, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            await _redisCache.RemoveAsync(key, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Redis unavailable, falling back to MemoryCache for REMOVE {Key}", key);
-            await _memoryCache.RemoveAsync(key, cancellationToken);
-        }
+        _cache.TryRemove(key, out _);
+        return Task.CompletedTask;
     }
 
-    public async Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
+    public Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
     {
-        try
+        if (_cache.TryGetValue(key, out var entry))
         {
-            return await _redisCache.ExistsAsync(key, cancellationToken);
+            if (entry.Expiration.HasValue && entry.Expiration.Value < DateTime.UtcNow)
+            {
+                _cache.TryRemove(key, out _);
+                return Task.FromResult(false);
+            }
+            return Task.FromResult(true);
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Redis unavailable, falling back to MemoryCache for EXISTS {Key}", key);
-            return await _memoryCache.ExistsAsync(key, cancellationToken);
-        }
+        return Task.FromResult(false);
     }
 
-    public async Task<T> GetOrAddAsync<T>(
-            string key,
-            Func<Task<T>> factory,
-            TimeSpan? expiration = null,
-            CancellationToken cancellationToken = default)
+    public async Task<T> GetOrAddAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
     {
-        try
+        var exists = await ExistsAsync(key, cancellationToken);
+        if (exists)
         {
-            // Try Redis first
-            return await _redisCache.GetOrAddAsync(key, factory, expiration, cancellationToken);
+            var cached = await GetAsync<T>(key, cancellationToken);
+            if (cached != null) return cached;
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Redis unavailable, falling back to MemoryCache for GETORADD {Key}", key);
-            return await _memoryCache.GetOrAddAsync(key, factory, expiration, cancellationToken);
-        }
+
+        var value = await factory();
+        await SetAsync(key, value, expiration, cancellationToken);
+        return value;
+    }
+
+    public Task RemoveByPrefixAsync(string prefix, CancellationToken cancellationToken = default)
+    {
+        var keysToRemove = _cache.Keys.Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList();
+        foreach (var key in keysToRemove)
+            _cache.TryRemove(key, out _);
+        return Task.CompletedTask;
+    }
+
+    public string AddPrefix(string prefix, string key)
+    {
+        if (string.IsNullOrWhiteSpace(prefix)) return key;
+        return prefix.EndsWith(":") ? $"{prefix}{key}" : $"{prefix}:{key}";
     }
 }

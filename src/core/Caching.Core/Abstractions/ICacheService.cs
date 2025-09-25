@@ -13,4 +13,8 @@ public interface ICacheService
         Func<Task<T>> factory,
         TimeSpan? expiration = null,
         CancellationToken cancellationToken = default);
+
+    Task RemoveByPrefixAsync(string prefix, CancellationToken cancellationToken = default);
+
+    string AddPrefix(string prefix, string key);
 }

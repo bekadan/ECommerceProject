@@ -1,4 +1,6 @@
 ﻿using Caching.Core.Abstractions;
+using Caching.Core.Extensions;
+using Caching.Core.Options;
 using Catalog.Application.DTOs;
 using Catalog.Application.Repositories;
 using Catalog.Domain.Factories;
@@ -7,30 +9,30 @@ using Core.Exceptions.Types;
 using Core.Logging.Abstractions;
 using Core.Validation.Abstractions;
 using MediatR;
-using Microsoft.Extensions.Azure;
 using Shared.Core;
+using Shared.Core.Abstractions.Messaging;
 using Shared.Core.Primitives;
 
 namespace Catalog.Application.Commands.Create;
 
-public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, Result<ProductDto>>
+public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand, Result<ProductDto>>
 {
     private readonly IProductAggregateRepository _repository;
     private readonly ICacheService _cacheService;
-    private readonly IEventDispatcher _eventPublisher;
+    private readonly IEventDispatcher _eventDispatcher;
     private readonly ILogger _logger;
     private readonly IValidator<CreateProductCommand> _validator;
 
     public CreateProductCommandHandler(
         IProductAggregateRepository repository,
         ICacheService cacheService,
-        IEventDispatcher eventPublisher,
+        IEventDispatcher eventDispatcher,
         ILogger logger,
         IValidator<CreateProductCommand> validator)
     {
         _repository = repository;
         _cacheService = cacheService;
-        _eventPublisher = eventPublisher;
+        _eventDispatcher = eventDispatcher;
         _logger = logger;
         _validator = validator;
     }
@@ -49,7 +51,7 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
 
         try
         {
-            // 2️⃣ Create aggregate using factory
+            // 2️⃣ Create aggregate
             var aggregate = ProductAggregateFactory.CreateNew(
                 command.Name,
                 command.Price,
@@ -64,16 +66,14 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
 
             // 4️⃣ Publish domain events
             foreach (var domainEvent in aggregate.DomainEvents)
-            {
-                await _eventPublisher.DispatchAsync(domainEvent, cancellationToken);
-            }
+                await _eventDispatcher.DispatchAsync(domainEvent, cancellationToken);
 
-            // 5️⃣ Update cache
-            await _cacheService.SetAsync(aggregate.Product.Name.Value, cancellationToken);
+            // 5️⃣ Remove all paginated product cache
+            await _cacheService.RemovePaginatedByPrefixAsync(CacheKeys.Products, cancellationToken);
 
             _logger.Information("Product {ProductId} created successfully", aggregate.Product.Id);
 
-            // 6️⃣ Map to DTO
+            // 6️⃣ Map aggregate to DTO
             var dto = new ProductDto
             {
                 Id = aggregate.Product.Id,
@@ -84,6 +84,10 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
                 CategoryId = aggregate.Product.CategoryId,
                 CategoryName = aggregate.Product.Category?.Name
             };
+
+            // 7️⃣ Cache individual product
+            var key = _cacheService.AddPrefix(CacheKeys.Products, aggregate.Product.Id.ToString());
+            await _cacheService.SetAsync(key, dto, TimeSpan.FromHours(1), cancellationToken);
 
             return Result.Success(dto);
         }

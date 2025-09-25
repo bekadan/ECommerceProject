@@ -12,6 +12,18 @@ public class ProductAggregate : AggregateRoot
 
     private ProductAggregate() { } // For ORM or serialization
 
+    public static ProductAggregate FromEntity(Product entity)
+    {
+        return new ProductAggregate(entity);
+    }
+
+    public static ProductAggregate CreateNew(string name, decimal price, string currency, Guid categoryId, int stock)
+    {
+        var product = new Product(Guid.NewGuid(), new ProductName(name), new Money(price, currency), categoryId, stock);
+
+        return new ProductAggregate(product);
+    }
+
     public ProductAggregate(Product product, Category? category = null)
     {
         Product = product ?? throw new DomainException("Product cannot be null.");
@@ -39,7 +51,7 @@ public class ProductAggregate : AggregateRoot
     // Optional: assign or change category
     public void AssignCategory(Category category)
     {
-        if (category == null)
+        if (category is null)
             throw new DomainException("Category cannot be null.");
 
         Category = category;

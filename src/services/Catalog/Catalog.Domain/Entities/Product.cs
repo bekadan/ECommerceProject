@@ -1,4 +1,5 @@
-﻿using Catalog.Domain.ValueObjects;
+﻿using Catalog.Domain.Aggregates;
+using Catalog.Domain.ValueObjects;
 using Shared.Core.Primitives;
 using Shared.Core.Utility;
 
@@ -16,7 +17,7 @@ public class Product : AggregateRoot
 
     private Product() { } // For ORM or serialization
 
-    public Product(ProductName name, Money price, Guid categoryId, int stock)
+    public Product(Guid guid, ProductName name, Money price, Guid categoryId, int stock)
     {
         Id = Guid.NewGuid();
         Name = name;
@@ -26,6 +27,8 @@ public class Product : AggregateRoot
 
         AddDomainEvent(new Events.ProductCreatedEvent(this));
     }
+
+    
 
     public void ChangePrice(Money newPrice)
     {

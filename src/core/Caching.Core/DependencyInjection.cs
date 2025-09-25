@@ -48,7 +48,7 @@ public static class DependencyInjection
         return services;
     }
 }
-}
+
 
 /*
  "CacheOptions": {

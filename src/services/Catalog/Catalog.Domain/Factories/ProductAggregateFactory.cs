@@ -40,6 +40,7 @@ public static class ProductAggregateFactory
             throw new DomainException("Stock cannot be negative.");
 
         var product = new Product(
+            Guid.NewGuid(),
             new ProductName(productName),
             new Money(priceAmount, currency),
             categoryId,
